@@ -156,3 +156,175 @@ View Output Tables
 pd.read_csv("output/customers.csv").head()
 pd.read_csv("output/products.csv").head()
 pd.read_csv("output/orders.csv").head()
+
+Export Outputs as CSV:
+
+import pandas as pd
+
+customers = pd.read_csv("output/customers.csv")
+products = pd.read_csv("output/products.csv")
+orders = pd.read_csv("output/orders.csv")
+
+customers.to_csv("output/customers.csv", index=False)
+products.to_csv("output/products.csv", index=False)
+orders.to_csv("output/orders.csv", index=False)
+
+print("CSV files exported successfully")
+
+Output check: 
+!ls
+!ls output
+
+Load Outputs into SQLite Database: 
+
+Create SQLite Database
+import sqlite3
+conn = sqlite3.connect("output/retail_sales.db")
+
+Load CSVs into SQLite Tables
+customers.to_sql("customers", conn, if_exists="replace", index=False)
+products.to_sql("products", conn, if_exists="replace", index=False)
+orders.to_sql("orders", conn, if_exists="replace", index=False)
+
+conn.commit()
+print("Data loaded into SQLite successfully")
+
+Verify Tables in SQLite
+query = "SELECT name FROM sqlite_master WHERE type='table';"
+pd.read_sql(query, conn)
+
+Sample Query (Proof of Load)
+pd.read_sql("SELECT * FROM orders LIMIT 5;", conn)
+
+Close Connection
+conn.close()
+
+Try Running a Query After conn.close() (Best Proof)
+conn.close()
+print("Connection closed")
+
+Now try to run a query:
+pd.read_sql("SELECT * FROM orders LIMIT 5;", conn)
+
+Expected Result:
+You’ll get an error like:
+ProgrammingError: Cannot operate on a closed database.
+This error confirms the connection is closed.
+
+Method 2: Use try–except (Clean Verification)
+try:
+    pd.read_sql("SELECT * FROM orders LIMIT 1;", conn)
+    print("Connection is still open")
+except Exception as e:
+    print("Connection is closed")
+    print("Error message:", e)
+
+
+Method 3: Reopen Connection 
+import sqlite3
+
+conn = sqlite3.connect("output/retail_sales.db")
+print("Connection reopened successfully")
+
+
+1. Load Datasets (Raw vs Processed vs Output)
+import pandas as pd
+
+raw_df = pd.read_csv("raw/retail_sales_raw.csv")
+processed_df = pd.read_csv("processed/retail_sales_processed.csv")
+orders_df = pd.read_csv("output/orders.csv")
+
+2. Validate Row Counts (Before vs After)
+print("Row Count Validation")
+print("-" * 40)
+print("Raw dataset rows      :", raw_df.shape[0])
+print("Processed dataset rows:", processed_df.shape[0])
+print("Orders table rows     :", orders_df.shape[0])
+
+How to Interpret
+
+Processed < Raw → duplicates / invalid rows removed
+
+Orders ≈ Processed → correct split logic
+
+3. Validate Duplicate Removal
+raw_duplicates = raw_df.duplicated().sum()
+processed_duplicates = processed_df.duplicated().sum()
+
+print("Duplicate Check")
+print("-" * 40)
+print("Duplicates in raw data      :", raw_duplicates)
+print("Duplicates after processing :", processed_duplicates)
+
+
+Should be 0 duplicates after processing
+
+4. Validate Missing Values Cleanup
+print("Missing Values After Processing")
+print("-" * 40)
+print(processed_df.isnull().sum())
+
+
+Critical columns (date, quantity, price, sales) should show 0 or minimal nulls
+
+5. Validate Output Split Counts (Consistency Check)
+customers_df = pd.read_csv("output/customers.csv")
+products_df = pd.read_csv("output/products.csv")
+
+print("Output Table Counts")
+print("-" * 40)
+print("Customers count:", customers_df.shape[0])
+print("Products count :", products_df.shape[0])
+print("Orders count   :", orders_df.shape[0])
+
+
+Orders will usually have highest rows, customers/products fewer (dimension tables)
+
+6. (Optional) Summary Validation Table (Looks Professional)
+validation_summary = pd.DataFrame({
+    "Stage": ["Raw", "Processed", "Orders"],
+    "Row_Count": [
+        raw_df.shape[0],
+        processed_df.shape[0],
+        orders_df.shape[0]
+    ]
+})
+
+validation_summary
+
+Update data set into the SQLlite:
+
+import pandas as pd
+import sqlite3
+
+processed_df = pd.read_csv("processed/retail_sales_processed.csv")
+conn = sqlite3.connect("database.sqlite")
+
+processed_df.to_sql(
+    name="processed_sales",
+    con=conn,
+    if_exists="replace",
+    index=False
+)
+
+conn.commit()
+print("processed_data loaded into database.sqlite")
+
+
+Download processed CSV
+from google.colab import files
+files.download("processed/retail_sales_processed.csv")
+
+Download SQLite database
+files.download("output/retail_sales.db")
+
+A browser download will start automatically.
+
+Download Multiple Files (ZIP – Recommended)
+
+This is the best practice for project submission.
+
+!zip -r etl_project_outputs.zip processed output
+
+from google.colab import files
+files.download("etl_project_outputs.zip")
