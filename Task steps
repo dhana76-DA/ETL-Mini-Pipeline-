@@ -1,0 +1,158 @@
+Steps done in project.
+Dataset download link: https://www.kaggle.com/datasets/mohammadtalib786/retail-sales-dataset
+
+Steps 1: Add the Region coulumn, Total Revenue = Quantity × Price per unit = G2/H2.
+Steps 2: Open the Google colab and upload the data set. 
+
+# Install necessary libs
+!pip install pandas
+import pandas as pd
+import sqlite3
+import os
+
+Folder Structure (Load step depends on this)
+
+folders = ["raw", "processed", "output"]
+for folder in folders:
+    os.makedirs(folder, exist_ok=True)
+
+print("Folders created:", folders)
+
+Load Raw Dataset (Extract)
+
+import pandas as pd
+
+raw_path = "/content/retail_sales_dataset.csv"
+
+df_raw = pd.read_csv(raw_path)
+
+# Save a copy into raw/
+df_raw.to_csv("raw/retail_sales_raw.csv", index=False)
+
+print("Raw data loaded")
+print(df_raw.shape)
+df_raw.head()
+
+Create folders: raw/, processed/, output/.
+
+source_path = "/content/retail_sales_dataset.csv"
+raw_path = "raw/retail_sales_raw.csv"
+
+# Copy file into raw folder
+df_raw = pd.read_csv(source_path)
+df_raw.to_csv(raw_path, index=False)
+
+print("Raw data saved to:", raw_path)
+print(df_raw.head())
+
+Clean Missing Values + Duplicates (Transform)
+
+df = df_raw.copy()
+
+# Standardize column names
+df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
+
+# Remove duplicates
+df.drop_duplicates(inplace=True)
+
+# Handle missing values
+df['quantity'] = df['quantity'].fillna(0)
+df['price_per_unit'] = df['price_per_unit'].fillna(0)
+
+# If Sales/Revenue exists (assuming it would be 'total_revenue' or 'sales' after standardization)
+# Check for 'total_revenue' as 'Sales' is not in original df and 'sales' is usually calculated
+if 'total_revenue' in df.columns:
+    df['total_revenue'] = df['total_revenue'].fillna(df['quantity'] * df['price_per_unit'])
+
+print("After cleaning:", df.shape)
+
+
+Standardize Column Names & Datatypes
+
+# Standardize column names (already done in previous cell, but kept for self-containment)
+df.columns = (
+    df.columns
+    .str.strip()
+    .str.lower()
+    .str.replace(" ", "_")
+)
+
+# Convert datatypes
+df['date'] = pd.to_datetime(df['date'], errors='coerce')
+df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce')
+df['price_per_unit'] = pd.to_numeric(df['price_per_unit'], errors='coerce')
+
+# Create 'sales' column if it doesn't exist, using quantity * price_per_unit
+# This addresses the KeyError if 'sales' is not in the original dataframe.
+if 'sales' not in df.columns:
+    df['sales'] = df['quantity'] * df['price_per_unit']
+
+df['sales'] = pd.to_numeric(df['sales'], errors='coerce')
+
+df.dtypes
+
+Create Derived Columns (Margin, Segment Flags)
+
+#Cost assumption (70% of price)
+df['cost'] = df['price_per_unit'] * 0.7
+
+# Profit & Margin
+df['profit'] = df['sales'] - (df['quantity'] * df['cost'])
+df['margin'] = df['profit'] / df['sales']
+
+# Segment flags
+df['high_value_sale'] = df['sales'] > 1000
+df['bulk_order'] = df['quantity'] >= 10
+
+df[['sales', 'profit', 'margin', 'high_value_sale', 'bulk_order']].head()
+
+Save Processed Dataset
+df.to_csv("processed/retail_sales_processed.csv", index=False)
+print("Processed data saved")
+
+Split Into Separate Outputs (Load)
+Customers Table
+
+customers = df[['region']].drop_duplicates().reset_index(drop=True)
+customers['customer_id'] = customers.index + 1
+
+customers.to_csv("output/customers.csv", index=False)
+
+Products Table
+
+products = df[['product_category', 'price_per_unit']].drop_duplicates().reset_index(drop=True)
+products['product_id'] = products.index + 1
+
+products.to_csv("output/products.csv", index=False)
+
+Orders / Sales Table
+
+orders = df[['date', 'region', 'product_category',
+             'quantity', 'price_per_unit', 'sales', 'profit', 'margin']]
+
+orders.to_csv("output/orders.csv", index=False)
+
+List Files & Folders (Quick Check)
+
+Run this cell to see the folder structure inside Colab:
+
+!ls
+
+
+To check inside each folder:
+
+!ls raw
+!ls processed
+!ls output
+
+View Raw Data
+import pandas as pd
+pd.read_csv("raw/retail_sales_raw.csv").head()
+
+View Processed Data
+pd.read_csv("processed/retail_sales_processed.csv").head()
+
+View Output Tables
+pd.read_csv("output/customers.csv").head()
+pd.read_csv("output/products.csv").head()
+pd.read_csv("output/orders.csv").head()
